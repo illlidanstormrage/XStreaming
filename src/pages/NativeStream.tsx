@@ -238,6 +238,8 @@ export function NativeStreamScreenBase({
     };
   }
   const {t} = useTranslation();
+  const padOnlyRef = React.useRef<boolean>(route?.params?.padOnly === true);
+  const padOnly = padOnlyRef.current;
   const {width: screenWidth} = useWindowDimensions();
   const authentication = useSelector((state: any) => state.authentication);
   const streamingTokens = useSelector((state: any) => state.streamingTokens);
@@ -257,7 +259,7 @@ export function NativeStreamScreenBase({
   const [showGamepadEditor, setShowGamepadEditor] = React.useState(false);
   const [editorProfile, setEditorProfile] = React.useState('');
   const [gamepadLayoutVersion, setGamepadLayoutVersion] = React.useState(0);
-  const [audioGain, setAudioGain] = React.useState(1);
+  const [audioGain, setAudioGain] = React.useState(padOnly ? 0 : 1);
   const [portraitGamepadEditing, setPortraitGamepadEditing] =
     React.useState(false);
   const [openMicro, setOpenMicro] = React.useState(false);
@@ -288,7 +290,7 @@ export function NativeStreamScreenBase({
   const [webrtcClient, setWebrtcClient] = React.useState<any>(undefined);
   const [remote, setRemote] = React.useState<any>(null);
   const remoteStream = React.useRef<any>(null);
-  const audioGainRef = React.useRef(1);
+  const audioGainRef = React.useRef(padOnly ? 0 : 1);
   const keepaliveInterval = React.useRef<any>(null);
   const performanceInterval = React.useRef<any>(null);
   const frameGenStatsSampleRef = React.useRef<any>(null);
@@ -800,9 +802,12 @@ export function NativeStreamScreenBase({
     FullScreenManager.immersiveModeOff();
     const currentSettings = getSettings();
     const isShowReport = String(currentSettings.show_session_report) === 'true';
-    const sessionReport = isShowReport
+    const rawSessionReport = isShowReport
       ? sessionStatsTracker.finishSession()
       : undefined;
+    const sessionReport = rawSessionReport
+      ? {...rawSessionReport, padOnly: padOnlyRef.current}
+      : rawSessionReport;
     navigation.navigate({
       name: getStreamDestination(),
       params: {needRefresh: true, sessionReport},
@@ -1576,7 +1581,7 @@ export function NativeStreamScreenBase({
     if (streamApi && webrtcClient !== undefined) {
       activeWebrtcClientRef.current = webrtcClient;
       reconnectPendingRef.current = false;
-      webrtcClient.init();
+      webrtcClient.init({padOnly: padOnlyRef.current});
 
       remoteStream.current = new MediaStream(undefined);
 
@@ -1599,7 +1604,7 @@ export function NativeStreamScreenBase({
         }
         remoteStream.current.addTrack(track, remoteStream.current);
         if (track?.kind === 'audio') {
-          track?._setVolume?.(audioGainRef.current);
+          track?._setVolume?.(padOnlyRef.current ? 0 : audioGainRef.current);
         }
       });
 
@@ -1630,6 +1635,10 @@ export function NativeStreamScreenBase({
           reconnectPendingRef.current = false;
           reconnectAttemptsRef.current = 0;
           reconnectExhaustedRef.current = false;
+
+          if (padOnlyRef.current) {
+            webrtcClient.setVideoDisplaySize(1280, 720);
+          }
 
           // Connected
           if (!isConnected.current) {
@@ -1667,15 +1676,20 @@ export function NativeStreamScreenBase({
             }
           }
           PipManager?.setAutoPipEnabled?.(
-            !Platform.isTV && !portraitMode && !!_settings.picture_in_picture,
+            !padOnly &&
+              !Platform.isTV &&
+              !portraitMode &&
+              !!_settings.picture_in_picture,
           );
 
           // Alway show virtual gamepad
-          if (portraitMode || _settings.show_virtual_gamead) {
+          if (padOnly || portraitMode || _settings.show_virtual_gamead) {
             setShowVirtualGamepad(true);
           }
 
-          setRemote(remoteStream.current.toURL());
+          if (!padOnly) {
+            setRemote(remoteStream.current.toURL());
+          }
 
           const sendFrame = () => {
             webrtcClient &&
@@ -2069,7 +2083,7 @@ export function NativeStreamScreenBase({
       streamApi
         .startSession(
           route.params?.sessionId,
-          _settings.resolution,
+          padOnlyRef.current ? 720 : _settings.resolution,
           handleQueueProgress,
         )
         .then(() => {
@@ -2279,6 +2293,7 @@ export function NativeStreamScreenBase({
     supportedSystemUis,
     scheduleReconnect,
     portraitMode,
+    padOnly,
     setManualLeftThumbPressed,
     syncAutoSprint,
     syncLeftThumbButton,
@@ -2364,6 +2379,9 @@ export function NativeStreamScreenBase({
         performanceInterval.current = null;
       }
       frameGenStatsSampleRef.current = null;
+      if (connectState !== CONNECTED) {
+        setPerformance(prev => (Object.keys(prev).length ? {} : prev));
+      }
       return;
     }
 
@@ -3030,7 +3048,7 @@ export function NativeStreamScreenBase({
           );
         }
       }
-      if (sessionStartTimeRef.current > 0) {
+      if (!padOnlyRef.current && sessionStartTimeRef.current > 0) {
         const elapsed = Math.floor(
           (Date.now() - sessionStartTimeRef.current) / 1000,
         );
@@ -3060,15 +3078,17 @@ export function NativeStreamScreenBase({
         title: t('Toggle Virtual Gamepad'),
         active: showVirtualGamepad,
       });
-      items.push({
-        id: 'toggleRecording',
-        title: activeRecording ? t('Stop Recording') : t('Start Recording'),
-        active: activeRecording,
-      });
-      items.push({
-        id: 'takeScreenshot',
-        title: t('Take Screenshot'),
-      });
+      if (!padOnlyRef.current) {
+        items.push({
+          id: 'toggleRecording',
+          title: activeRecording ? t('Stop Recording') : t('Start Recording'),
+          active: activeRecording,
+        });
+        items.push({
+          id: 'takeScreenshot',
+          title: t('Take Screenshot'),
+        });
+      }
       if (showVirtualGamepad) {
         items.push({
           id: 'editVirtualGamepad',
@@ -3115,10 +3135,12 @@ export function NativeStreamScreenBase({
     });
 
     const result = await showNativeOptionsDialog(items, {
-      showAudioGainControl: connectState === CONNECTED,
-      audioGain,
-      sessionStartTime: sessionStartTimeRef.current,
-      sessionLimitSeconds: sessionLimitSecondsRef.current,
+      showAudioGainControl: connectState === CONNECTED && !padOnlyRef.current,
+      audioGain: padOnlyRef.current ? 0 : audioGain,
+      sessionStartTime: padOnlyRef.current ? 0 : sessionStartTimeRef.current,
+      sessionLimitSeconds: padOnlyRef.current
+        ? 0
+        : sessionLimitSecondsRef.current,
       sessionPlaytimeLabel: t('Session Playtime'),
       minLeftLabel: t('{{min}} min left', {min: 999}).replace('999', '%d'),
     });
@@ -3284,7 +3306,13 @@ export function NativeStreamScreenBase({
   };
 
   const renderPerformancePanel = () => {
-    if (!portraitMode && showPerformance && !isInPictureInPicture) {
+    if (
+      !padOnly &&
+      !portraitMode &&
+      showPerformance &&
+      !isInPictureInPicture &&
+      connectState === CONNECTED
+    ) {
       return (
         <PerfPanel
           performance={performance}
@@ -3314,6 +3342,34 @@ export function NativeStreamScreenBase({
     }
   };
 
+  const renderPadOnlyHud = () => {
+    if (!padOnly) {
+      return null;
+    }
+    const isConnectedNow = connectState === CONNECTED;
+    const statValue = (value: any) =>
+      value === undefined || value === null || value === '' ? '-' : value;
+    const showStats = isConnectedNow && showPerformance;
+    return (
+      <View style={styles.padOnlyHud} pointerEvents="box-none">
+        <View style={styles.padOnlyCol}>
+          <View style={styles.padOnlyChip}>
+            <Text style={styles.padOnlyChipText} numberOfLines={1}>
+              🎮 {t('Pad mode')}
+            </Text>
+          </View>
+          {showStats ? (
+            <View style={styles.padOnlyStats}>
+              <Text style={styles.padOnlyStatsText} numberOfLines={1}>
+                {`${t('RTT')} ${statValue(performance?.rtt)}`}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    );
+  };
+
   const useFsrRenderer = !!settings.fsr;
   const fsrSharpness = settings.fsr_display_options?.sharpness ?? 2;
   const handleNativePointerInput = React.useCallback(
@@ -3330,7 +3386,7 @@ export function NativeStreamScreenBase({
   const video_format = settings.native_touch ? '' : settings.video_format;
   const loadingPosterUrl =
     typeof route.params?.postUrl === 'string' ? route.params.postUrl : '';
-  const showLoadingPoster = loading && !!loadingPosterUrl;
+  const showLoadingPoster = !padOnly && loading && !!loadingPosterUrl;
   const portraitSafeTop =
     portraitMode && Platform.OS === 'android'
       ? StatusBar.currentHeight || 0
@@ -3338,6 +3394,9 @@ export function NativeStreamScreenBase({
   const portraitVideoHeight = Math.round((screenWidth * 9) / 16);
 
   const renderStreamPlayer = (containerStyle: any, playerStyle: any) => {
+    if (padOnly) {
+      return null;
+    }
     if (showLoadingPoster || !remoteStream.current?.toURL()) {
       return null;
     }
@@ -3557,6 +3616,8 @@ export function NativeStreamScreenBase({
 
       {renderStreamPlayer(styles.playerContainer, styles.player)}
 
+      {renderPadOnlyHud()}
+
       {renderPerformancePanel()}
 
       {renderVirtualGamepad()}
@@ -3665,6 +3726,50 @@ const styles = StyleSheet.create({
     right: 5,
     bottom: 5,
     zIndex: 99,
+  },
+  padOnlyHud: {
+    position: 'absolute',
+    top: 24,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 90,
+  },
+  padOnlyCol: {
+    alignItems: 'center',
+    maxWidth: '80%',
+  },
+  padOnlyStats: {
+    marginTop: 6,
+    backgroundColor: 'rgba(20, 20, 20, 0.75)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+  padOnlyStatsText: {
+    color: 'rgba(255, 255, 255, 0.88)',
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+  },
+  padOnlyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(20, 20, 20, 0.9)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  padOnlyChipText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    flexShrink: 0,
   },
   playtimeReminderBanner: {
     position: 'absolute',

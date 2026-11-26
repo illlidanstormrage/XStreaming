@@ -90,7 +90,10 @@ export default class InputChannel extends BaseChannel {
   constructor(channelName: string, client: any) {
     super(channelName, client);
     const settings = getSettings();
-    if (settings.resolution === 1081 || settings.resolution === 1440) {
+    if (client?._padOnly === true) {
+      this._serverWidth = 1280;
+      this._serverHeight = 720;
+    } else if (settings.resolution === 1081 || settings.resolution === 1440) {
       this._serverWidth = 2560;
       this._serverHeight = 1440;
     } else if (settings.resolution === 720) {

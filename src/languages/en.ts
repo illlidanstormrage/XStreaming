@@ -657,6 +657,18 @@ export default {
     Done: 'Done',
     Navigate: 'Navigate',
     'Direct Play': 'Play',
+    'Pad mode': 'Pad mode',
+    'Pad mode needs the native render engine, switched automatically':
+      'Pad mode needs the native render engine, switched automatically',
+    'Start mode': 'Start mode',
+    'Choose how this session starts. It only applies this time.':
+      'Choose how this session starts. It only applies this time.',
+    'Stream video': 'Stream video',
+    'Show the game on this device, like a normal session':
+      'Show the game on this device, like a normal session',
+    'Pad only': 'Pad only',
+    'No video on this phone. The game keeps playing on your TV and this phone works as one more controller':
+      'No video on this phone. The game keeps playing on your TV and this phone works as one more controller',
     Sort: 'Sort',
     Clear: 'Clear',
   },

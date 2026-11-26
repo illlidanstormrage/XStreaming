@@ -600,6 +600,18 @@ export default {
     Network: '网络',
     Done: '完成',
     'Direct Play': '游玩',
+    'Pad mode': '手柄模式',
+    'Pad mode needs the native render engine, switched automatically':
+      '纯手柄模式需要 native 渲染引擎，已自动切换',
+    'Start mode': '启动模式',
+    'Choose how this session starts. It only applies this time.':
+      '选择本次串流的启动方式，只对这一次生效。',
+    'Stream video': '串流画面',
+    'Show the game on this device, like a normal session':
+      '和普通串流一样，在这台设备上显示游戏画面',
+    'Pad only': '纯手柄',
+    'No video on this phone. The game keeps playing on your TV and this phone works as one more controller':
+      '手机不显示画面，游戏继续在电视上播放，这台手机变成额外的 Xbox 手柄',
     Sort: '排序',
   },
 };

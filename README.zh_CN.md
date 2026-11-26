@@ -94,6 +94,8 @@ npm run android
 1. [登录认证，获得串流凭据](./docs/1.Auth_zh.md)
 2. [Web API](./docs/2.Web_zh.md)
 3. [串流](./docs/3.Stream_zh.md)
+4. [开发须知（项目结构与改法）](./docs/DEVELOPMENT_GUIDE_zh.md)
+5. [Windows 本地编译与运行](./docs/Local_Build_Windows_zh.md)
 
 ## 开发者
 

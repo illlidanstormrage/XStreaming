@@ -259,7 +259,10 @@ export default class MessageChannel extends BaseChannel {
 
     if (!targetWidth || !targetHeight) {
       const settings = getSettings();
-      if (settings.resolution === 1081 || settings.resolution === 1440) {
+      if ((this.getClient() as any)?._padOnly === true) {
+        targetWidth = 1280;
+        targetHeight = 720;
+      } else if (settings.resolution === 1081 || settings.resolution === 1440) {
         targetWidth = 2560;
         targetHeight = 1440;
       } else if (settings.resolution === 720) {

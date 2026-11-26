@@ -546,5 +546,17 @@ export default {
     'Estimated wait: ~{{min}} min': '預計等待: ~{{min}} 分鐘',
     'Estimated wait: < 1 min': '預計等待: < 1 分鐘',
     'No queue': '無需排隊',
+    'Pad mode': '手柄模式',
+    'Pad mode needs the native render engine, switched automatically':
+      '純手柄模式需要 native 渲染引擎，已自動切換',
+    'Start mode': '啟動模式',
+    'Choose how this session starts. It only applies this time.':
+      '選擇本次串流的啟動方式，只對這一次生效。',
+    'Stream video': '串流畫面',
+    'Show the game on this device, like a normal session':
+      '和一般串流一樣，在這台裝置上顯示遊戲畫面',
+    'Pad only': '純手柄',
+    'No video on this phone. The game keeps playing on your TV and this phone works as one more controller':
+      '手機不顯示畫面，遊戲繼續在電視上播放，這台手機變成額外的 Xbox 手柄',
   },
 };

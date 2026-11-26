@@ -119,6 +119,7 @@ class webRTCClient {
   _hasVideoTrack = false;
   _hasAudioTrack = false;
   _hasSentInitialVideoKeyframeRequest = false;
+  _padOnly = false;
 
   constructor() {
     console.log('xstreaming Player loaded!');
@@ -126,7 +127,8 @@ class webRTCClient {
     this._resetVideoTrackState();
   }
 
-  init() {
+  init(options?: {padOnly?: boolean}) {
+    this._padOnly = options?.padOnly === true;
     const settings = getSettings();
     this._resetAudioLevelTracking();
     this._resetVideoTrackState();
@@ -181,6 +183,7 @@ class webRTCClient {
       }
 
       if (
+        !this._padOnly &&
         this._hasVideoTrack &&
         this._hasAudioTrack &&
         !this._hasSentInitialVideoKeyframeRequest
@@ -248,6 +251,9 @@ class webRTCClient {
           if (stereoAudioEnabled) {
             offer.sdp = this.forceStereoAudio(offer.sdp);
           }
+          if (this._padOnly) {
+            offer.sdp = this.limitVideoBandwidth(offer.sdp, 600);
+          }
           this._webrtcClient?.setLocalDescription(offer).then(() => {
             resolve(offer);
           });
@@ -278,6 +284,36 @@ class webRTCClient {
         resolve();
       });
     });
+  }
+
+  setVideoDisplaySize(width: number, height: number) {
+    const messageChannel = this._webrtcChannelProcessors?.message;
+    if (messageChannel?.sendDimensionsChanged) {
+      messageChannel.sendDimensionsChanged(width, height);
+      console.log('[webrtc] display size resent:', width, height);
+    }
+  }
+
+  limitVideoBandwidth(sdp: string, kbps: number) {
+    try {
+      const parsed: any = sdpTransform.parse(sdp);
+      let changed = false;
+      (parsed.media || []).forEach((media: any) => {
+        if (media.type !== 'video') {
+          return;
+        }
+        const bandwidth = (media.bandwidth || []).filter(
+          (item: any) => item.type !== 'AS',
+        );
+        bandwidth.push({type: 'AS', limit: kbps});
+        media.bandwidth = bandwidth;
+        changed = true;
+      });
+      return changed ? sdpTransform.write(parsed) : sdp;
+    } catch (e) {
+      console.log('[webrtc] limit video bandwidth failed:', e);
+      return sdp;
+    }
   }
 
   getIceCandidates() {

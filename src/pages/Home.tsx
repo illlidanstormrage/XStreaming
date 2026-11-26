@@ -77,6 +77,12 @@ function HomeScreen({navigation, route}) {
   const [currentConsoleId, setCurrentConsoleId] = React.useState('');
   const [showUsbWarnModal, setShowUsbWarnShowModal] = React.useState(false);
   const [showHarmonyModal, setShowHarmonyModal] = React.useState(false);
+  const [showStartModeModal, setShowStartModeModal] = React.useState(false);
+  const [focusedStartModeBtn, setFocusedStartModeBtn] = React.useState<
+    'stream' | 'padonly'
+  >('stream');
+  const pendingPadOnlyRef = React.useRef(false);
+  const pendingSessionIdRef = React.useRef('');
   const [numColumns, setNumColumns] = React.useState(2);
   const [showLogin, setShowLogin] = React.useState(false);
   const [showMsalLogin, setShowMsalLogin] = React.useState(false);
@@ -447,11 +453,11 @@ function HomeScreen({navigation, route}) {
 
       setLoading(false);
 
-      handleStartStream(sessionId);
+      openStartModeModal(sessionId);
     } catch (e) {
       setLoading(false);
 
-      handleStartStream(sessionId);
+      openStartModeModal(sessionId);
     }
   };
 
@@ -510,6 +516,20 @@ function HomeScreen({navigation, route}) {
     }
   };
 
+  const openStartModeModal = (sessionId: string) => {
+    pendingSessionIdRef.current = sessionId;
+    setCurrentConsoleId(sessionId);
+    pendingPadOnlyRef.current = false;
+    setFocusedStartModeBtn('stream');
+    setShowStartModeModal(true);
+  };
+
+  const handleChooseStartMode = (padOnly: boolean) => {
+    setShowStartModeModal(false);
+    pendingPadOnlyRef.current = padOnly;
+    handleStartStream(pendingSessionIdRef.current);
+  };
+
   const handleStartStream = async sessionId => {
     const settings = getSettings();
     const hasValidUsbDevice = await UsbRumbleManager.getHasValidUsbDevice();
@@ -552,6 +572,17 @@ function HomeScreen({navigation, route}) {
       routeName = 'NanoStream';
     }
 
+    const padOnly = pendingPadOnlyRef.current === true;
+    if (padOnly && routeName !== 'NativeStream') {
+      if (settings.render_engine !== 'native') {
+        ToastAndroid.show(
+          t('Pad mode needs the native render engine, switched automatically'),
+          ToastAndroid.LONG,
+        );
+      }
+      routeName = 'NativeStream';
+    }
+
     // Lagecy user force to native stream
     if (isLagecy && routeName === 'Stream') {
       routeName = settings.native_portrait_mode
@@ -566,6 +597,7 @@ function HomeScreen({navigation, route}) {
         settings,
         isUsbMode,
         usbController,
+        padOnly,
       },
     });
   };
@@ -594,6 +626,7 @@ function HomeScreen({navigation, route}) {
       !showMsal &&
       !showUsbWarnModal &&
       !showHarmonyModal &&
+      !showStartModeModal &&
       !sessionReport,
     onRight: () => {
       if (focusedSection === 'consoles') {
@@ -643,7 +676,7 @@ function HomeScreen({navigation, route}) {
       if (focusedSection === 'consoles') {
         const item: any = consoles[focusedIndex];
         if (item) {
-          handleStartStream(item.serverId);
+          openStartModeModal(item.serverId);
         }
       } else if (focusedSection === 'refresh') {
         handleRefreshConsoles();
@@ -688,6 +721,7 @@ function HomeScreen({navigation, route}) {
       !showMsal &&
       !showUsbWarnModal &&
       !showHarmonyModal &&
+      !showStartModeModal &&
       !sessionReport,
     priority: 5,
     onUp: () => {
@@ -709,6 +743,21 @@ function HomeScreen({navigation, route}) {
     },
     onBack: () => {
       BackHandler.exitApp();
+    },
+  });
+
+  useGamepadNavigation({
+    enabled: isFocused && showStartModeModal,
+    priority: 12,
+    onUp: () => setFocusedStartModeBtn('stream'),
+    onDown: () => setFocusedStartModeBtn('padonly'),
+    onLeft: () => setFocusedStartModeBtn('stream'),
+    onRight: () => setFocusedStartModeBtn('padonly'),
+    onSelect: () => {
+      handleChooseStartMode(focusedStartModeBtn === 'padonly');
+    },
+    onBack: () => {
+      setShowStartModeModal(false);
     },
   });
 
@@ -753,6 +802,73 @@ function HomeScreen({navigation, route}) {
       {button: 'B', label: t('Exit')},
     ];
   }, [t]);
+
+  const renderStartModeModal = () => {
+    if (!showStartModeModal) {
+      return null;
+    }
+    return (
+      <Portal>
+        <Modal
+          visible={showStartModeModal}
+          onDismiss={() => setShowStartModeModal(false)}
+          contentContainerStyle={{marginLeft: '4%', marginRight: '4%'}}>
+          <Card>
+            <Card.Content>
+              <Text variant="titleLarge">{t('Start mode')}</Text>
+              <Text style={styles.startModeDesc}>
+                {t(
+                  'Choose how this session starts. It only applies this time.',
+                )}
+              </Text>
+
+              <Button
+                mode={
+                  focusedStartModeBtn === 'stream' ? 'contained' : 'outlined'
+                }
+                style={[
+                  styles.startModeButton,
+                  focusedStartModeBtn === 'stream' &&
+                    styles.actionButtonFocused,
+                ]}
+                onPress={() => handleChooseStartMode(false)}>
+                {t('Stream video')}
+              </Button>
+              <Text style={styles.startModeHint}>
+                {t('Show the game on this device, like a normal session')}
+              </Text>
+
+              <Button
+                mode={
+                  focusedStartModeBtn === 'padonly' ? 'contained' : 'outlined'
+                }
+                style={[
+                  styles.startModeButton,
+                  focusedStartModeBtn === 'padonly' &&
+                    styles.actionButtonFocused,
+                ]}
+                onPress={() => handleChooseStartMode(true)}>
+                {t('Pad only')}
+              </Button>
+              <Text style={styles.startModeHint}>
+                {t(
+                  'No video on this phone. The game keeps playing on your TV and this phone works as one more controller',
+                )}
+              </Text>
+
+              <Button
+                mode="text"
+                onPress={() => {
+                  setShowStartModeModal(false);
+                }}>
+                {t('Cancel')}
+              </Button>
+            </Card.Content>
+          </Card>
+        </Modal>
+      </Portal>
+    );
+  };
 
   // Warn: xboxOne controller must press Nexus button first to active button
   const renderUsbWarningModal = () => {
@@ -1030,7 +1146,7 @@ function HomeScreen({navigation, route}) {
                         <ConsoleItem
                           isFocused={isItemFocused}
                           consoleItem={item}
-                          onPress={() => handleStartStream(item.serverId)}
+                          onPress={() => openStartModeModal(item.serverId)}
                           onPoweronStream={() =>
                             handlePoweronAndStream(item.serverId)
                           }
@@ -1154,6 +1270,8 @@ function HomeScreen({navigation, route}) {
 
       {showUsbWarnModal && renderUsbWarningModal()}
 
+      {showStartModeModal && renderStartModeModal()}
+
       {showHarmonyModal && renderHarmonyModal()}
 
       {renderContent()}
@@ -1162,6 +1280,7 @@ function HomeScreen({navigation, route}) {
         <SessionReportModal
           visible={true}
           report={sessionReport}
+          padOnly={!!sessionReport?.padOnly}
           onDismiss={handleDismissReport}
           onDone={handleDoneReport}
         />
@@ -1284,6 +1403,19 @@ const styles = StyleSheet.create({
     elevation: 8,
     shadowColor: '#FFFFFF',
     shadowOpacity: 0.6,
+  },
+  startModeDesc: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  startModeButton: {
+    width: '100%',
+    marginBottom: 4,
+  },
+  startModeHint: {
+    marginBottom: 16,
+    opacity: 0.7,
+    fontSize: 12,
   },
   consoleList: {
     paddingLeft: 10,

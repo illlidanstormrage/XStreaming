@@ -98,6 +98,8 @@ npm run android
 1. [Auth](/docs/1.Auth.md)
 2. [Web API](./docs/2.Web.md)
 3. [Stream](./docs/3.Stream.md)
+4. [Development guide (ZH)](./docs/DEVELOPMENT_GUIDE_zh.md)
+5. [Building on Windows (ZH)](./docs/Local_Build_Windows_zh.md)
 
 ## Developers
 

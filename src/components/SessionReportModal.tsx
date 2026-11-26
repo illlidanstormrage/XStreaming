@@ -23,6 +23,7 @@ export interface SessionReportModalProps {
   report: SessionReportData | null;
   onDismiss: () => void;
   onDone: (dontShowAgain: boolean) => void;
+  padOnly?: boolean;
 }
 
 const polarToCartesian = (
@@ -56,6 +57,7 @@ const SessionReportModal: React.FC<SessionReportModalProps> = ({
   report,
   onDismiss,
   onDone,
+  padOnly = false,
 }) => {
   const {t} = useTranslation();
   const theme = useTheme();
@@ -441,6 +443,162 @@ const SessionReportModal: React.FC<SessionReportModalProps> = ({
     </>
   );
 
+  const renderPadOnlyMetric = (
+    icon: any,
+    label: string,
+    value: string,
+    valueColor?: string,
+  ) => (
+    <View style={styles.metricRowContainer}>
+      <View style={styles.metricLabelRow}>
+        <Text
+          style={[styles.metricLabelText, {color: colors.labelColor}]}
+          numberOfLines={1}>
+          {label}
+        </Text>
+        <Icon source={icon} size={13} color={colors.iconColor} />
+      </View>
+      <Text
+        style={[
+          styles.metricPrimaryValue,
+          {color: valueColor || colors.valueColor},
+        ]}>
+        {value}
+      </Text>
+    </View>
+  );
+
+  const renderPadOnlyLayout = () => (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+      contentContainerStyle={styles.scrollContent}>
+      <Text style={[styles.headerTitle, {color: colors.headerText}]}>
+        {t('Session report')}
+      </Text>
+
+      <View style={styles.metricsTwoColumn}>
+        <View
+          style={[
+            styles.metricCard,
+            {
+              backgroundColor: colors.subCardBg,
+              borderColor: colors.subCardBorder,
+            },
+          ]}>
+          {renderPadOnlyMetric(
+            'download',
+            t('Data Received (Total):'),
+            report.totalDownloadFormatted,
+          )}
+          {renderPadOnlyMetric(
+            'upload',
+            t('Data Sent (Total):'),
+            report.totalUploadFormatted,
+          )}
+        </View>
+
+        <View
+          style={[
+            styles.metricCard,
+            {
+              backgroundColor: colors.subCardBg,
+              borderColor: colors.subCardBorder,
+            },
+          ]}>
+          {renderPadOnlyMetric(
+            'antenna',
+            t('Average Latency:'),
+            `${report.latencyAvg} ms`,
+            latencyColor,
+          )}
+          {renderPadOnlyMetric(
+            'tilde',
+            t('Jitter (Variation):'),
+            `${report.jitterAvg} ms`,
+            jitterStatusColor,
+          )}
+        </View>
+      </View>
+
+      <View style={styles.footerContainer}>
+        <Pressable
+          onPress={() => setDontShowAgain(!dontShowAgain)}
+          style={({pressed}) => [
+            styles.checkboxWrapper,
+            focusedBtn === 'checkbox' &&
+              (isGamepadActive || Platform.isTV) &&
+              styles.checkboxWrapperFocused,
+            pressed && {opacity: 0.7},
+          ]}>
+          <View
+            style={[
+              styles.checkboxBox,
+              {borderColor: colors.checkboxBorder},
+              dontShowAgain && styles.checkboxBoxChecked,
+            ]}>
+            {dontShowAgain && <Icon source="check" size={14} color="#FFFFFF" />}
+          </View>
+          <Text style={[styles.checkboxLabel, {color: colors.checkboxLabel}]}>
+            {t("Don't show this again")}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleDonePress}
+          style={({pressed}) => [
+            styles.donePillButton,
+            {backgroundColor: colors.doneButtonBg},
+            focusedBtn === 'done' &&
+              (isGamepadActive || Platform.isTV) && [
+                styles.donePillButtonFocused,
+                {borderColor: colors.doneButtonFocusedBorder},
+              ],
+            pressed && styles.donePillButtonPressed,
+          ]}>
+          <Text
+            style={[styles.donePillButtonText, {color: colors.doneButtonText}]}>
+            {t('Done')}
+          </Text>
+        </Pressable>
+
+        {(isGamepadActive || Platform.isTV) && (
+          <View style={styles.modalGamepadHints}>
+            <Text
+              style={[
+                styles.modalGamepadHintText,
+                {color: colors.hintTextColor},
+              ]}>
+              <Text
+                style={[
+                  styles.hintKeyBadge,
+                  {
+                    backgroundColor: colors.hintKeyBg,
+                    color: colors.hintKeyText,
+                  },
+                ]}>
+                A
+              </Text>{' '}
+              {focusedBtn === 'checkbox' ? t('Toggle') : t('Done')}
+              {'   '}
+              <Text
+                style={[
+                  styles.hintKeyBadge,
+                  {
+                    backgroundColor: colors.hintKeyBg,
+                    color: colors.hintKeyText,
+                  },
+                ]}>
+                B
+              </Text>{' '}
+              {t('Close')}
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+
   return (
     <Portal>
       <Modal
@@ -460,7 +618,9 @@ const SessionReportModal: React.FC<SessionReportModalProps> = ({
               shadowColor: colors.cardShadow,
             },
           ]}>
-          {isWideScreen ? (
+          {padOnly ? (
+            renderPadOnlyLayout()
+          ) : isWideScreen ? (
             /* ========================================================================= */
             /* 16:9 / ANDROID TV / WIDESCREEN DASHBOARD LAYOUT                          */
             /* ========================================================================= */

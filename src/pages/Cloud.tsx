@@ -3683,6 +3683,7 @@ function CloudScreen({navigation, route}: any) {
       <SessionReportModal
         visible={!!sessionReport}
         report={sessionReport}
+        padOnly={!!sessionReport?.padOnly}
         onDismiss={handleDismissReport}
         onDone={handleDoneReport}
       />
